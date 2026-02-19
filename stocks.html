@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日本半導体株ウォッチャー</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;background:#0b0d14;color:#dde1f0;min-height:100vh}
+
+    /* ===== HEADER ===== */
+    header{background:#12151f;border-bottom:1px solid #1e2236;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-icon{width:30px;height:30px;background:linear-gradient(135deg,#4f8ef7,#9b59f7);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .logo h1{font-size:17px;font-weight:700;color:#fff;letter-spacing:-.3px}
+    .logo small{font-size:11px;color:#555;margin-left:6px}
+    #clock{font-size:12px;color:#555;font-variant-numeric:tabular-nums}
+
+    /* ===== MARKET BAR ===== */
+    .market-bar{background:#0e1120;border-bottom:1px solid #1a1d2e;padding:8px 24px;display:flex;gap:28px;overflow-x:auto;scrollbar-width:none}
+    .market-bar::-webkit-scrollbar{display:none}
+    .mitem{display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13px}
+    .mitem .mlabel{color:#555;font-size:11px}
+    .mitem .mval{font-weight:600;color:#ccc}
+    .mitem .mchg{font-size:11px;padding:2px 6px;border-radius:4px;font-weight:600}
+    .up{color:#2ecc71}.down{color:#e74c3c}.neutral{color:#888}
+    .bg-up{background:rgba(46,204,113,.12);color:#2ecc71}
+    .bg-down{background:rgba(231,76,60,.12);color:#e74c3c}
+    .bg-neutral{background:rgba(136,136,136,.12);color:#888}
+    .divider{width:1px;background:#1e2236;margin:0 4px}
+
+    /* ===== CONTAINER ===== */
+    .container{max-width:1100px;margin:0 auto;padding:20px 16px;display:grid;gap:20px}
+
+    /* ===== FOCUS CARDS (6857/6871/6855) ===== */
+    .focus-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .focus-card{background:linear-gradient(145deg,#141828,#111522);border:1px solid #222640;border-radius:12px;padding:18px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden}
+    .focus-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+    .focus-card.f1::before{background:linear-gradient(90deg,#4f8ef7,#60a5fa)}
+    .focus-card.f2::before{background:linear-gradient(90deg,#9b59f7,#c084fc)}
+    .focus-card.f3::before{background:linear-gradient(90deg,#f7924f,#fbbf78)}
+    .focus-card:hover{border-color:#333860;transform:translateY(-2px)}
+    .fc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+    .fc-ticker{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.5px}
+    .fc-name{font-size:11px;color:#555;margin-top:2px;line-height:1.4}
+    .fc-badge{font-size:10px;background:#1e2236;color:#666;padding:3px 8px;border-radius:20px}
+    .fc-price{font-size:28px;font-weight:800;color:#fff;letter-spacing:-1px;margin-bottom:6px}
+    .fc-price span{font-size:14px;font-weight:400;color:#555;margin-left:2px}
+    .fc-change{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;padding:3px 10px;border-radius:6px;margin-bottom:10px}
+    .fc-meta{display:flex;gap:12px}
+    .fc-meta-item{font-size:11px;color:#555}.fc-meta-item b{color:#888;display:block;font-size:10px;margin-bottom:1px}
+
+    /* ===== API STATUS ===== */
+    .api-status{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-bottom:8px}
+    .api-status.loading{background:rgba(79,142,247,.12);color:#4f8ef7}
+    .api-status.live{background:rgba(46,204,113,.12);color:#2ecc71}
+    .api-status.error{background:rgba(231,76,60,.12);color:#e74c3c}
+    .api-status .dot-pulse{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .api-error-box{background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:11px;color:#e74c3c;line-height:1.55;display:none}
+    .api-error-box .err-title{font-weight:700;margin-bottom:4px}
+    .yf-link{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#4f8ef7;text-decoration:none;margin-top:10px;padding:4px 10px;border:1px solid rgba(79,142,247,.25);border-radius:6px;transition:background .2s}
+    .yf-link:hover{background:rgba(79,142,247,.1)}
+    .mock-badge{font-size:10px;background:rgba(247,183,79,.12);color:#f7b74f;border:1px solid rgba(247,183,79,.2);padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;margin-left:8px}
+
+    /* ===== SEARCH + CONTROLS ===== */
+    .controls{display:flex;gap:10px;align-items:center}
+    .search-wrap{position:relative;flex:1}
+    .search-wrap input{width:100%;background:#141828;border:1px solid #1e2236;border-radius:8px;padding:10px 14px 10px 36px;color:#dde1f0;font-size:14px;outline:none;transition:border-color .2s}
+    .search-wrap input:focus{border-color:#4f8ef7}
+    .search-wrap input::placeholder{color:#444}
+    .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#444;font-size:15px;pointer-events:none}
+    .refresh-btn{background:#4f8ef7;border:none;border-radius:8px;padding:10px 18px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap}
+    .refresh-btn:hover{background:#3a7ae0}
+    .refresh-btn:active{transform:scale(.97)}
+
+    /* ===== SUMMARY ===== */
+    .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .scard{background:#141828;border:1px solid #1e2236;border-radius:10px;padding:14px}
+    .scard .sl{font-size:11px;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+    .scard .sv{font-size:22px;font-weight:700;color:#fff}
+    .scard .ss{font-size:11px;margin-top:3px}
+
+    /* ===== TABLE ===== */
+    .table-wrap{background:#141828;border:1px solid #1e2236;border-radius:12px;overflow:hidden}
+    table{width:100%;border-collapse:collapse}
+    thead tr{background:#0e1120}
+    th{padding:11px 16px;font-size:11px;font-weight:600;color:#555;text-align:left;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;user-select:none;white-space:nowrap}
+    th:hover{color:#999}
+    th.r,td.r{text-align:right}
+    tbody tr{border-top:1px solid #181d2e;transition:background .15s;cursor:pointer}
+    tbody tr:hover{background:#1a2038}
+    tbody tr.highlight-row{border-left:3px solid #4f8ef7}
+    td{padding:13px 16px;font-size:13px}
+    .t-ticker{font-weight:700;color:#fff;font-size:14px}
+    .t-name{font-size:11px;color:#555;margin-top:2px}
+    .t-star{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle}
+    .t-price{font-weight:600;color:#e8eaf6;font-variant-numeric:tabular-nums}
+    .badge{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:6px}
+    .bar-wrap{width:80px;height:6px;background:#1e2236;border-radius:3px;margin-left:auto}
+    .bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#4f8ef7,#9b59f7)}
+    .sa{font-size:9px;opacity:.4}.sa.active{opacity:1;color:#4f8ef7}
+
+    /* ===== NEWS / EVENTS ===== */
+    .section-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .section-title .dot{width:8px;height:8px;border-radius:50%;background:#4f8ef7;flex-shrink:0}
+
+    .news-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .news-card{background:#141828;border:1px solid #1e2236;border-radius:10px;padding:16px;transition:border-color .2s}
+    .news-card:hover{border-color:#2a2f50}
+    .news-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px}
+    .news-title{font-size:13px;font-weight:600;color:#e0e4f0;line-height:1.45;flex:1}
+    .news-date{font-size:11px;color:#444;white-space:nowrap}
+    .news-body{font-size:12px;color:#666;line-height:1.6;margin-bottom:12px}
+    .news-impact{display:flex;flex-wrap:wrap;gap:6px}
+    .impact-chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+    .imp-up{background:rgba(46,204,113,.12);color:#2ecc71;border:1px solid rgba(46,204,113,.2)}
+    .imp-down{background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.2)}
+    .imp-neutral{background:rgba(136,136,136,.1);color:#888;border:1px solid rgba(136,136,136,.15)}
+    .imp-watch{background:rgba(79,142,247,.1);color:#4f8ef7;border:1px solid rgba(79,142,247,.2)}
+    .news-cat{font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:4px;font-weight:600}
+    .cat-demand{background:rgba(155,89,247,.15);color:#9b59f7}
+    .cat-macro{background:rgba(247,183,79,.15);color:#f7b74f}
+    .cat-supply{background:rgba(46,204,113,.15);color:#2ecc71}
+    .cat-policy{background:rgba(79,142,247,.15);color:#4f8ef7}
+    .cat-earnings{background:rgba(231,76,60,.15);color:#e74c3c}
+
+    /* ===== FACTOR PANEL ===== */
+    .factor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .factor-card{background:#141828;border:1px solid #1e2236;border-radius:10px;padding:14px}
+    .factor-label{font-size:11px;color:#555;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em}
+    .factor-val{font-size:15px;font-weight:700;margin-bottom:6px}
+    .factor-desc{font-size:11px;color:#555;line-height:1.5}
+    .meter{height:4px;background:#1e2236;border-radius:2px;margin:8px 0}
+    .meter-fill{height:100%;border-radius:2px;transition:width .5s}
+    .meter-fill.up{background:linear-gradient(90deg,#27ae60,#2ecc71)}
+    .meter-fill.down{background:linear-gradient(90deg,#c0392b,#e74c3c)}
+    .meter-fill.neutral{background:linear-gradient(90deg,#555,#888)}
+
+    /* ===== ROW API STATUS ===== */
+    .row-status{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;vertical-align:middle;margin-left:5px;display:inline-block}
+    .row-status.pending{background:rgba(79,142,247,.12);color:#4f8ef7;animation:blink 1.4s infinite}
+    .row-status.live{background:rgba(46,204,113,.12);color:#2ecc71}
+    .row-status.error{background:rgba(231,76,60,.12);color:#e74c3c}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+    .tbl-status-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+    .tbl-status-desc{font-size:11px;color:#555;margin-bottom:12px}
+
+    /* ===== NO RESULTS ===== */
+    .no-results{text-align:center;padding:40px;color:#444;font-size:13px}
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:750px){
+      .focus-cards{grid-template-columns:1fr;gap:10px}
+      .summary-row{grid-template-columns:repeat(2,1fr)}
+      .news-grid{grid-template-columns:1fr}
+      .factor-grid{grid-template-columns:1fr 1fr}
+      td.hide-sm,th.hide-sm{display:none}
+    }
+    @media(max-width:500px){
+      .factor-grid{grid-template-columns:1fr}
+      .summary-row{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">半</div>
+    <div>
+      <h1>日本半導体株ウォッチャー <small>Japan Semiconductor Watch</small></h1>
+    </div>
+  </div>
+  <div id="clock">--:--:--</div>
+</header>
+
+<!-- MARKET BAR -->
+<div class="market-bar">
+  <div class="mitem"><span class="mlabel">SOX</span><span class="mval" id="sox-val">4,821</span><span class="mchg bg-up" id="sox-chg">+1.23%</span></div>
+  <div class="divider"></div>
+  <div class="mitem"><span class="mlabel">USD/JPY</span><span class="mval" id="usdjpy-val">152.40</span><span class="mchg bg-down" id="usdjpy-chg">-0.28%</span></div>
+  <div class="divider"></div>
+  <div class="mitem"><span class="mlabel">日経225</span><span class="mval" id="nk-val">38,720</span><span class="mchg bg-up" id="nk-chg">+0.45%</span></div>
+  <div class="divider"></div>
+  <div class="mitem"><span class="mlabel">NASDAQ</span><span class="mval" id="nq-val">19,850</span><span class="mchg bg-up" id="nq-chg">+0.82%</span></div>
+  <div class="divider"></div>
+  <div class="mitem"><span class="mlabel">TSMC ADR</span><span class="mval" id="tsm-val">$182.40</span><span class="mchg bg-up" id="tsm-chg">+1.54%</span></div>
+  <div class="divider"></div>
+  <div class="mitem"><span class="mlabel">NVDA</span><span class="mval" id="nvda-val">$875.20</span><span class="mchg bg-up" id="nvda-chg">+3.21%</span></div>
+</div>
+
+<div class="container">
+
+  <!-- FOCUS CARDS -->
+  <div>
+    <div class="section-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px"><div class="dot"></div>注目銘柄（リアルタイム株価）</div>
+      <button class="refresh-btn" style="font-size:12px;padding:6px 14px" onclick="fetchAllPrices()">↺ API再取得</button>
+    </div>
+    <div class="focus-cards">
+
+      <!-- 6857 -->
+      <div class="focus-card f1" id="card-6857">
+        <div class="fc-header">
+          <div><div class="fc-ticker">6857</div><div class="fc-name">アドバンテスト<br>半導体テスト装置</div></div>
+          <span class="fc-badge">テスト装置</span>
+        </div>
+        <div class="api-status loading" id="st6857"><span class="dot-pulse"></span>取得中...</div>
+        <div class="fc-price" id="p6857">-- <span>円</span></div>
+        <div class="fc-change bg-neutral neutral" id="c6857">--</div>
+        <div class="fc-meta" id="m6857">
+          <div class="fc-meta-item"><b>前日終値</b><span id="prev6857">--</span></div>
+          <div class="fc-meta-item"><b>データ元</b>Yahoo Finance</div>
+        </div>
+        <div class="api-error-box" id="err6857">
+          <div class="err-title">取得エラー</div>
+          <div id="errmsg6857"></div>
+        </div>
+        <a class="yf-link" href="https://finance.yahoo.co.jp/quote/6857.T" target="_blank" rel="noopener">
+          Yahoo Finance で確認 ↗
+        </a>
+      </div>
+
+      <!-- 6871 -->
+      <div class="focus-card f2" id="card-6871">
+        <div class="fc-header">
+          <div><div class="fc-ticker">6871</div><div class="fc-name">日本マイクロニクス<br>プローブカード</div></div>
+          <span class="fc-badge">検査治具</span>
+        </div>
+        <div class="api-status loading" id="st6871"><span class="dot-pulse"></span>取得中...</div>
+        <div class="fc-price" id="p6871">-- <span>円</span></div>
+        <div class="fc-change bg-neutral neutral" id="c6871">--</div>
+        <div class="fc-meta" id="m6871">
+          <div class="fc-meta-item"><b>前日終値</b><span id="prev6871">--</span></div>
+          <div class="fc-meta-item"><b>データ元</b>Yahoo Finance</div>
+        </div>
+        <div class="api-error-box" id="err6871">
+          <div class="err-title">取得エラー</div>
+          <div id="errmsg6871"></div>
+        </div>
+        <a class="yf-link" href="https://finance.yahoo.co.jp/quote/6871.T" target="_blank" rel="noopener">
+          Yahoo Finance で確認 ↗
+        </a>
+      </div>
+
+      <!-- 6855 -->
+      <div class="focus-card f3" id="card-6855">
+        <div class="fc-header">
+          <div><div class="fc-ticker">6855</div><div class="fc-name">日本電子材料<br>プローブカード</div></div>
+          <span class="fc-badge">検査治具</span>
+        </div>
+        <div class="api-status loading" id="st6855"><span class="dot-pulse"></span>取得中...</div>
+        <div class="fc-price" id="p6855">-- <span>円</span></div>
+        <div class="fc-change bg-neutral neutral" id="c6855">--</div>
+        <div class="fc-meta" id="m6855">
+          <div class="fc-meta-item"><b>前日終値</b><span id="prev6855">--</span></div>
+          <div class="fc-meta-item"><b>データ元</b>Yahoo Finance</div>
+        </div>
+        <div class="api-error-box" id="err6855">
+          <div class="err-title">取得エラー</div>
+          <div id="errmsg6855"></div>
+        </div>
+        <a class="yf-link" href="https://finance.yahoo.co.jp/quote/6855.T" target="_blank" rel="noopener">
+          Yahoo Finance で確認 ↗
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-row">
+    <div class="scard"><div class="sl">ウォッチ銘柄</div><div class="sv" id="s-total">-</div><div class="ss neutral">銘柄</div></div>
+    <div class="scard"><div class="sl">上昇</div><div class="sv up" id="s-up">-</div><div class="ss up" id="s-up-p">-</div></div>
+    <div class="scard"><div class="sl">下落</div><div class="sv down" id="s-dn">-</div><div class="ss down" id="s-dn-p">-</div></div>
+    <div class="scard"><div class="sl">最終更新</div><div class="sv" style="font-size:16px" id="s-time">--:--</div><div class="ss neutral">自動更新 5秒</div></div>
+  </div>
+
+  <!-- SEARCH + TABLE -->
+  <div>
+    <div class="tbl-status-bar">
+      <div class="section-title" style="margin-bottom:0">
+        <div class="dot" style="background:#2ecc71"></div>
+        半導体関連銘柄一覧
+        <span id="tbl-status-badge" class="mock-badge">取得中...</span>
+      </div>
+      <button class="refresh-btn" style="font-size:12px;padding:6px 14px" onclick="fetchAllPrices()">↺ API再取得</button>
+    </div>
+    <div id="tbl-status-desc" class="tbl-status-desc">Yahoo Finance APIより株価・前日比を取得中... 出来高・時価総額は参考値です。</div>
+    <div class="controls" style="margin-bottom:12px">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search" placeholder="銘柄コード・銘柄名で検索..." />
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sort('ticker')">銘柄 <span class="sa" id="sa-ticker">▲</span></th>
+            <th class="r" onclick="sort('price')">株価 <span class="sa" id="sa-price">▲</span></th>
+            <th class="r" onclick="sort('change')">前日比 <span class="sa" id="sa-change">▲</span></th>
+            <th class="r hide-sm" onclick="sort('volume')">出来高 <span class="sa" id="sa-volume">▲</span></th>
+            <th class="r hide-sm" onclick="sort('cap')">時価総額 <span class="sa" id="sa-cap">▲</span></th>
+            <th class="r hide-sm">セクター</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="no-results" id="no-results" style="display:none">銘柄が見つかりません</div>
+    </div>
+  </div>
+
+  <!-- IMPACT FACTORS -->
+  <div>
+    <div class="section-title"><div class="dot" style="background:#9b59f7"></div>株価波及ファクター（6857・6871・6855）</div>
+    <div class="factor-grid" id="factors-grid"></div>
+  </div>
+
+  <!-- NEWS & EVENTS -->
+  <div>
+    <div class="section-title"><div class="dot" style="background:#f7b74f"></div>注目ニュース・イベント</div>
+    <div class="news-grid" id="news-grid"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ===== STOCK DATA (yfSym = Yahoo Finance ticker) =====
+const BASE = [
+  {ticker:"6857",name:"アドバンテスト",         en:"Advantest",          yfSym:"6857.T", price:0,change:0,volume:4200000,cap:6300, sector:"テスト装置",      focus:true, color:"#4f8ef7"},
+  {ticker:"8035",name:"東京エレクトロン",        en:"Tokyo Electron",     yfSym:"8035.T", price:0,change:0,volume:2800000,cap:11050,sector:"製造装置",        focus:false,color:"#2ecc71"},
+  {ticker:"6146",name:"ディスコ",               en:"Disco",              yfSym:"6146.T", price:0,change:0,volume:420000, cap:1960, sector:"製造装置",        focus:false,color:"#2ecc71"},
+  {ticker:"6871",name:"日本マイクロニクス",      en:"Nihon Micronics",    yfSym:"6871.T", price:0,change:0,volume:820000, cap:620,  sector:"プローブカード",  focus:true, color:"#9b59f7"},
+  {ticker:"6855",name:"日本電子材料",           en:"Japan Electronic M.",yfSym:"6855.T", price:0,change:0,volume:310000, cap:230,  sector:"プローブカード",  focus:true, color:"#f7924f"},
+  {ticker:"4063",name:"信越化学工業",           en:"Shin-Etsu Chemical", yfSym:"4063.T", price:0,change:0,volume:1600000,cap:11380,sector:"シリコンウェーハ", focus:false,color:"#1abc9c"},
+  {ticker:"3436",name:"SUMCO",                  en:"SUMCO",              yfSym:"3436.T", price:0,change:0,volume:3200000,cap:2030, sector:"シリコンウェーハ", focus:false,color:"#1abc9c"},
+  {ticker:"6723",name:"ルネサスエレクトロニクス",en:"Renesas",            yfSym:"6723.T", price:0,change:0,volume:5800000,cap:4190, sector:"半導体設計",      focus:false,color:"#e67e22"},
+  {ticker:"6501",name:"日立製作所",             en:"Hitachi",            yfSym:"6501.T", price:0,change:0,volume:3600000,cap:14300,sector:"電機・総合",      focus:false,color:"#95a5a6"},
+  {ticker:"6976",name:"太陽誘電",               en:"Taiyo Yuden",        yfSym:"6976.T", price:0,change:0,volume:980000, cap:620,  sector:"電子部品",        focus:false,color:"#e67e22"},
+];
+
+// ===== MARKET DATA (simulation base) =====
+const MARKET={sox:{val:4821,chg:1.23},usdjpy:{val:152.40,chg:-0.28},nk:{val:38720,chg:0.45},nq:{val:19850,chg:0.82},tsm:{val:182.40,chg:1.54},nvda:{val:875.20,chg:3.21}};
+
+// ===== NEWS DATA =====
+const NEWS=[
+  {cat:"cat-demand",catLabel:"需要動向",title:"HBM4量産移行加速、テスト時間がHBM3E比さらに長期化",date:"2026-02-19",
+   body:"SK HynixがHBM4の量産を開始。スタック数の増加でダイ積層テストが複雑化し、テスト時間が通常DRAMの5〜7倍に。アドバンテストのT5503/T5503Hが主力プラットフォームとして採用継続。HBM4の本格普及で6857の受注が更に積み上がる見通し。",
+   impacts:[{label:"6857 ▲強気",cls:"imp-up"},{label:"6871 ▲中立〜強気",cls:"imp-up"},{label:"6855 ▲中立",cls:"imp-watch"}]},
+  {cat:"cat-earnings",catLabel:"決算・業績",title:"NVIDIA Blackwell GB200量産フル稼働、供給逼迫続く",date:"2026-02-16",
+   body:"NVIDIAのBlackwell GB200 NVLシリーズの供給が依然不足。TSMCのCoWoS-L先端パッケージ拡張が急ピッチで進み、検査・テスト工程の需要がさらに拡大。アドバンテスト・東京エレクトロン双方への恩恵が継続。",
+   impacts:[{label:"6857 ▲強気",cls:"imp-up"},{label:"8035 ▲強気",cls:"imp-up"},{label:"6146 ▲中立〜強気",cls:"imp-watch"}]},
+  {cat:"cat-macro",catLabel:"為替・マクロ",title:"日銀追加利上げ観測が再浮上、輸出比率の高い銘柄に逆風",date:"2026-02-15",
+   body:"日銀が2026年内の追加利上げを検討との報道が相次ぐ。半導体装置・材料メーカーは輸出比率が高く、1円の円高で営業利益が数十億円規模で減少する試算がある。特にドル建て売上比率の高い6857（約80%）・8035（約90%）に要注意。",
+   impacts:[{label:"6857 ▼要注意",cls:"imp-down"},{label:"8035 ▼要注意",cls:"imp-down"},{label:"6871 ▼影響軽微",cls:"imp-neutral"}]},
+  {cat:"cat-policy",catLabel:"政策・規制",title:"トランプ政権が対中半導体規制をさらに厳格化、同盟国に協調要請",date:"2026-02-14",
+   body:"トランプ政権が日本・オランダなどに中国向け半導体装置輸出の追加規制を要請。東京エレクトロンの中国向け売上比率（約40%）が大きなリスク要因。代替需要の韓国・台湾向けシフトに期待も、短期的な業績への影響は不可避。",
+   impacts:[{label:"8035 ▼リスク大",cls:"imp-down"},{label:"6857 ▼リスク小",cls:"imp-neutral"},{label:"6871 − 限定的",cls:"imp-neutral"}]},
+  {cat:"cat-supply",catLabel:"供給動向",title:"TSMC 2nm（N2）本格量産でプローブカード更新サイクルが短縮",date:"2026-02-12",
+   body:"TSMCがN2プロセスの量産を本格化。微細化に伴いプローブカードの接触針ピッチが更に縮小し、高精度カードへの更新サイクルが加速。日本マイクロニクス（6871）・日本電子材料（6855）への中長期的な受注増が見込まれる。",
+   impacts:[{label:"6871 ▲中〜長期強気",cls:"imp-up"},{label:"6855 ▲中〜長期強気",cls:"imp-up"},{label:"6857 ▲中立〜強気",cls:"imp-watch"}]},
+  {cat:"cat-demand",catLabel:"需要動向",title:"NAND市況が底打ち、エンタープライズSSDが回復を牽引",date:"2026-02-10",
+   body:"AI学習用ストレージ需要が旺盛でエンタープライズSSDの単価が回復。ただしスマホ・PC向けコンシューマーNANDは依然低調。6871・6855のNAND向けプローブカード受注は底打ち初期段階で、本格回復は2026年後半と見られる。",
+   impacts:[{label:"6871 △→○ 回復初期",cls:"imp-watch"},{label:"6855 △→○ 回復初期",cls:"imp-watch"},{label:"6857 − DRAM主体",cls:"imp-neutral"}]},
+];
+
+// ===== STATE =====
+let stocks=BASE.map(s=>({...s,apiStatus:"pending",prevClose:null,apiError:""}));
+let sortKey="ticker",sortAsc=true,query="",fetchCooldown=false;
+
+// ===== UTILS =====
+function fmtVol(n){if(!n||n<=0)return"--";if(n>=1e6)return(n/1e6).toFixed(1)+"M";if(n>=1e3)return(n/1e3).toFixed(0)+"K";return n;}
+function fmtPrice(p){if(!p||p<=0)return"--";return p.toLocaleString("ja-JP",{minimumFractionDigits:0,maximumFractionDigits:0});}
+function clamp(v,lo,hi){return Math.min(hi,Math.max(lo,v));}
+
+// ===== DYNAMIC FACTOR COMPUTATION (tied to live API data + market bar) =====
+function computeFactors(){
+  const g=k=>stocks.find(s=>s.ticker===k);
+  const chg=k=>{const s=g(k);return s?.apiStatus==="live"?(s.change||0):0;};
+  const jpy=MARKET.usdjpy.val, sox=MARKET.sox.val, soxC=MARKET.sox.chg;
+  const c6857=chg("6857"),c6871=chg("6871"),c6855=chg("6855");
+  const anyLive=stocks.some(s=>s.apiStatus==="live");
+  const src=anyLive?`API取得値・${new Date().toLocaleTimeString("ja-JP")}更新`:"参考値";
+
+  // 1. HBM需要 ← 6857が主シグナル
+  const hbmM=clamp(83+c6857*2.5,40,97);
+  const hbmC=hbmM>=72?"up":hbmM>=52?"neutral":"down";
+  const hbmV=hbmM>=90?"極めて強い":hbmM>=74?"強い":hbmM>=56?"やや弱い":"弱い";
+
+  // 2. DRAM市況 ← 6871が主シグナル
+  const dramM=clamp(68+c6871*3.5,28,93);
+  const dramC=dramM>=65?"up":dramM>=46?"neutral":"down";
+  const dramV=dramM>=80?"回復・堅調":dramM>=62?"緩やか回復":dramM>=44?"横ばい":"低迷";
+
+  // 3. NAND市況 ← 6855が主シグナル（DRAMより遅行）
+  const nandM=clamp(52+c6855*3.5,18,86);
+  const nandC=nandM>=62?"up":nandM>=40?"neutral":"down";
+  const nandV=nandM>=72?"回復基調":nandM>=55?"底打ち〜回復初期":nandM>=36?"底打ち感":"低迷継続";
+
+  // 4. USD/JPY ← マーケットバーの実値から直接算出
+  const jpyM=clamp((jpy-140)/18*100,0,100);
+  const jpyC=jpy>=155?"up":jpy>=148?"neutral":"down";
+  const jpyI=jpy>=155?"輸出企業に追い風":jpy>=148?"中立圏":jpy>=142?"円高進行・要注意":"急速な円高・逆風";
+
+  // 5. SOX ← マーケットバーの変化率から算出
+  const soxM=clamp(62+soxC*9,18,96);
+  const soxC2=soxC>=0.5?"up":soxC>=-0.5?"neutral":"down";
+  const soxV=soxC>=2?"急騰":soxC>=0.5?"上昇基調":soxC>=-0.5?"横ばい":soxC>=-2?"下落":"急落";
+
+  // 6. 対中規制 ← 構造リスクなので固定（高リスク維持）
+  return[
+    {label:"HBM需要水準",val:hbmV,cls:hbmC,meter:Math.round(hbmM),
+     desc:`HBM4量産移行が加速。AIサーバー向けテスト工程は通常DRAMの5〜7倍の時間を要する。6857株価（${c6857>=0?"+":""}${c6857.toFixed(2)}%）が需要強度を示唆。（${src}）`,
+     chips:[{l:"6857 ◎",c:"imp-up"},{l:"6871 ○",c:"imp-watch"}]},
+    {label:"DRAM市況",val:dramV,cls:dramC,meter:Math.round(dramM),
+     desc:`DDR5普及・HPC向け需要を背景に回復基調。6871株価（${c6871>=0?"+":""}${c6871.toFixed(2)}%）がDRAM向けプローブカード受注の先行指標となる。（${src}）`,
+     chips:[{l:"6871 ○",c:"imp-watch"},{l:"6855 ○",c:"imp-watch"}]},
+    {label:"NAND市況",val:nandV,cls:nandC,meter:Math.round(nandM),
+     desc:`エンタープライズSSD牽引で底打ち。6855株価（${c6855>=0?"+":""}${c6855.toFixed(2)}%）がNAND向けプローブカード市況を反映。コンシューマー向けは依然軟調。（${src}）`,
+     chips:[{l:"6871 △→○",c:"imp-watch"},{l:"6855 △→○",c:"imp-watch"}]},
+    {label:"USD/JPY（円安度）",val:jpy.toFixed(1)+"円台",cls:jpyC,meter:Math.round(jpyM),
+     desc:`現在${jpy.toFixed(2)}円。${jpyI}。6857は海外売上比率約80%で感応度が高く、1円の円高で営業利益約50億円減少の試算がある。（マーケットバー参照）`,
+     chips:[{l:"6857 感応度◎",c:jpyC==="up"?"imp-up":jpyC==="neutral"?"imp-neutral":"imp-down"},{l:"8035 感応度◎",c:jpyC==="up"?"imp-up":jpyC==="neutral"?"imp-neutral":"imp-down"}]},
+    {label:"SOX指数トレンド",val:`${soxV}（${soxC>=0?"+":""}${soxC.toFixed(2)}%）`,cls:soxC2,meter:Math.round(soxM),
+     desc:`SOX ${sox.toLocaleString()}pt（前日比${soxC>=0?"+":""}${soxC.toFixed(2)}%）。SOXと日本半導体株の相関は高く（~0.8）、翌日の株価方向性の先行指標となる。（マーケットバー参照）`,
+     chips:[{l:"6857 高連動",c:soxC2==="up"?"imp-up":"imp-down"},{l:"8035 高連動",c:soxC2==="up"?"imp-up":"imp-down"}]},
+    {label:"対中輸出規制リスク",val:"規制強化中",cls:"down",meter:80,
+     desc:"トランプ政権が同盟国に規制協調を要請。中国向け売上比率の高い8035（約40%）・6857（約15%）に継続リスク。6871・6855への直接影響は軽微だが、顧客の設備投資抑制が間接波及しうる。",
+     chips:[{l:"8035 要注意",c:"imp-down"},{l:"6857 軽微",c:"imp-neutral"}]},
+  ];
+}
+
+// ===== MARKET BAR SIMULATION =====
+function fluctuateMarket(){
+  MARKET.sox.val=+(MARKET.sox.val+(Math.random()-.5)*12).toFixed(0);
+  MARKET.sox.chg=+(MARKET.sox.chg+(Math.random()-.5)*.18).toFixed(2);
+  MARKET.usdjpy.val=+(MARKET.usdjpy.val+(Math.random()-.5)*.1).toFixed(2);
+  MARKET.usdjpy.chg=+(MARKET.usdjpy.chg+(Math.random()-.5)*.06).toFixed(2);
+  MARKET.nk.val=+(MARKET.nk.val+(Math.random()-.5)*60).toFixed(0);
+  MARKET.nk.chg=+(MARKET.nk.chg+(Math.random()-.5)*.1).toFixed(2);
+  MARKET.nvda.val=+(MARKET.nvda.val+(Math.random()-.5)*6).toFixed(2);
+  MARKET.nvda.chg=+(MARKET.nvda.chg+(Math.random()-.5)*.2).toFixed(2);
+}
+
+// ===== RENDER MARKET BAR =====
+function renderMarket(){
+  const m=MARKET;
+  const set=(id,val,chg,prefix="")=>{
+    const u=chg>=0;
+    const ve=document.getElementById(id+"-val");
+    const ce=document.getElementById(id+"-chg");
+    if(ve)ve.textContent=prefix+(typeof val==="number"&&val>=1000?val.toLocaleString():val);
+    if(ce){ce.textContent=(u?"+":"")+chg.toFixed(2)+"%";ce.className="mchg "+(u?"bg-up":"bg-down");}
+  };
+  set("sox",m.sox.val,m.sox.chg);
+  set("nk",m.nk.val,m.nk.chg);
+  set("nq",m.nq.val,m.nq.chg);
+  const uv=document.getElementById("usdjpy-val"),uc=document.getElementById("usdjpy-chg");
+  if(uv)uv.textContent=m.usdjpy.val.toFixed(2);
+  if(uc){uc.textContent=(m.usdjpy.chg>=0?"+":"")+m.usdjpy.chg.toFixed(2)+"%";uc.className="mchg "+(m.usdjpy.chg>=0?"bg-up":"bg-down");}
+  const tv=document.getElementById("tsm-val"),tc=document.getElementById("tsm-chg");
+  if(tv)tv.textContent="$"+m.tsm.val.toFixed(2);
+  if(tc){tc.textContent=(m.tsm.chg>=0?"+":"")+m.tsm.chg.toFixed(2)+"%";tc.className="mchg "+(m.tsm.chg>=0?"bg-up":"bg-down");}
+  const nv=document.getElementById("nvda-val"),nc=document.getElementById("nvda-chg");
+  if(nv)nv.textContent="$"+m.nvda.val.toFixed(2);
+  if(nc){nc.textContent=(m.nvda.chg>=0?"+":"")+m.nvda.chg.toFixed(2)+"%";nc.className="mchg "+(m.nvda.chg>=0?"bg-up":"bg-down");}
+}
+
+// ===== YAHOO FINANCE API =====
+const PROXY="https://corsproxy.io/?url=";
+
+async function fetchYahoo(yfSym){
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${yfSym}?interval=1d&range=2d&includePrePost=false`;
+  let res,data;
+  try{
+    res=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    if(res.ok)data=await res.json();
+  }catch(e){
+    try{
+      res=await fetch(PROXY+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+      if(res.ok){const raw=await res.json();data=raw?.contents?JSON.parse(raw.contents):raw;}
+    }catch(e2){throw new Error("NETWORK:"+e2.message);}
+  }
+  if(!res||!res.ok)throw new Error("HTTP:"+(res?.status||"?")+" "+(res?.statusText||""));
+  const result=data?.chart?.result?.[0];
+  if(!result){const ae=data?.chart?.error?.description;throw new Error("NODATA:"+(ae||"データが返されませんでした"));}
+  const meta=result.meta;
+  const price=meta.regularMarketPrice??meta.price;
+  const prevClose=meta.previousClose??meta.chartPreviousClose;
+  if(!price)throw new Error("NODATA:株価データが含まれていません");
+  const changePct=prevClose?((price-prevClose)/prevClose*100):0;
+  return{price:+price.toFixed(0),changePct:+changePct.toFixed(2),prevClose:prevClose?+prevClose.toFixed(0):null,volume:meta.regularMarketVolume||0};
+}
+
+// ===== FOCUS CARD HELPERS =====
+function setFocusLoading(code){
+  const st=document.getElementById("st"+code),err=document.getElementById("err"+code);
+  const pc=document.getElementById("p"+code),cc=document.getElementById("c"+code);
+  if(st){st.className="api-status loading";st.innerHTML='<span class="dot-pulse"></span>取得中...';}
+  if(err)err.style.display="none";
+  if(pc)pc.innerHTML='-- <span>円</span>';
+  if(cc){cc.textContent="--";cc.className="fc-change bg-neutral neutral";}
+}
+function setFocusLive(code,price,changePct,prevClose){
+  const isUp=changePct>=0;
+  const st=document.getElementById("st"+code),err=document.getElementById("err"+code);
+  const pc=document.getElementById("p"+code),cc=document.getElementById("c"+code),pv=document.getElementById("prev"+code);
+  if(st){st.className="api-status live";st.innerHTML='<span class="dot-pulse"></span>LIVE';}
+  if(err)err.style.display="none";
+  if(pc)pc.innerHTML=price.toLocaleString("ja-JP")+" <span>円</span>";
+  if(cc){cc.textContent=(isUp?"▲ +":"▼ ")+Math.abs(changePct).toFixed(2)+"%";cc.className="fc-change "+(isUp?"bg-up up":"bg-down down");}
+  if(pv)pv.textContent=prevClose?prevClose.toLocaleString("ja-JP")+"円":"--";
+}
+function setFocusError(code,msg,hint){
+  const st=document.getElementById("st"+code),err=document.getElementById("err"+code),em=document.getElementById("errmsg"+code);
+  if(st){st.className="api-status error";st.textContent="取得失敗";}
+  if(err)err.style.display="block";
+  if(em)em.innerHTML=`<b>${msg}</b><br>${hint}`;
+}
+function parseApiError(raw){
+  if(raw.startsWith("HTTP:"))return{msg:"HTTPエラー: "+raw.replace("HTTP:",""),hint:"Yahoo Finance APIがエラーを返しました。しばらくして再試行してください。"};
+  if(raw.startsWith("NODATA:"))return{msg:"データなし",hint:raw.replace("NODATA:","")};
+  if(raw.includes("NETWORK:")||raw.includes("Failed to fetch")||raw.includes("NetworkError"))
+    return{msg:"接続エラー（CORSまたはネットワーク）",hint:"ブラウザのセキュリティ制限により取得できませんでした。<br>「Yahoo Finance で確認」リンクから実際の株価をご参照ください。"};
+  if(raw.includes("timeout")||raw.includes("AbortError"))return{msg:"タイムアウト",hint:"APIへの接続がタイムアウトしました。ネットワーク状況を確認し再試行してください。"};
+  return{msg:"不明なエラー",hint:raw.slice(0,100)};
+}
+
+// ===== TABLE STATUS =====
+function updateTableStatus(state,ok,total){
+  const badge=document.getElementById("tbl-status-badge"),desc=document.getElementById("tbl-status-desc");
+  if(state==="loading"){
+    if(badge){badge.className="mock-badge";badge.textContent="取得中...";}
+    if(desc)desc.textContent="Yahoo Finance APIより全銘柄の株価を取得中... しばらくお待ちください。";
+  }else if(state==="live"){
+    if(badge){badge.style.cssText="font-size:10px;background:rgba(46,204,113,.12);color:#2ecc71;border:1px solid rgba(46,204,113,.2);padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;margin-left:8px";badge.textContent="Yahoo Finance LIVE";}
+    if(desc)desc.textContent=`全${total}銘柄の株価・前日比をYahoo Finance APIより取得済（${new Date().toLocaleTimeString("ja-JP")}更新）。出来高・時価総額は参考値。`;
+  }else if(state==="partial"){
+    if(badge){badge.style.cssText="font-size:10px;background:rgba(247,183,79,.12);color:#f7b74f;border:1px solid rgba(247,183,79,.2);padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;margin-left:8px";badge.textContent=`${ok}/${total}銘柄取得済`;}
+    if(desc)desc.textContent=`${ok}/${total}銘柄の株価をYahoo Finance APIより取得。ERR銘柄はYahoo Financeリンクよりご確認ください。`;
+  }else{
+    if(badge){badge.style.cssText="font-size:10px;background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.2);padding:2px 8px;border-radius:4px;font-weight:600;vertical-align:middle;margin-left:8px";badge.textContent="API取得失敗";}
+    if(desc)desc.textContent="Yahoo Finance APIからの取得に失敗しました。ブラウザのCORS制限の可能性があります。各銘柄のERRバッジをご確認ください。";
+  }
+}
+
+// ===== FETCH ALL PRICES =====
+async function fetchAllPrices(){
+  if(fetchCooldown){return;}
+  fetchCooldown=true;setTimeout(()=>{fetchCooldown=false;},30000);
+  stocks.forEach(s=>{s.apiStatus="pending";});
+  stocks.filter(s=>s.focus).forEach(s=>setFocusLoading(s.ticker));
+  updateTableStatus("loading");renderTable();
+  let ok=0;
+  await Promise.allSettled(stocks.map(async s=>{
+    try{
+      const {price,changePct,prevClose,volume}=await fetchYahoo(s.yfSym);
+      s.price=price;s.change=changePct;s.prevClose=prevClose;
+      if(volume>0)s.volume=volume;
+      s.apiStatus="live";s.apiError="";ok++;
+      if(s.focus)setFocusLive(s.ticker,price,changePct,prevClose);
+    }catch(err){
+      s.apiStatus="error";s.apiError=err.message;
+      if(s.focus){const{msg,hint}=parseApiError(err.message||"");setFocusError(s.ticker,msg,hint);}
+    }
+    renderTable();renderSummary();renderFactors();
+  }));
+  updateTableStatus(ok===stocks.length?"live":ok>0?"partial":"error",ok,stocks.length);
+}
+
+// ===== RENDER TABLE =====
+function renderTable(){
+  let list=stocks.filter(s=>s.ticker.toLowerCase().includes(query)||s.name.toLowerCase().includes(query)||(s.en&&s.en.toLowerCase().includes(query)));
+  list.sort((a,b)=>{let va=a[sortKey],vb=b[sortKey];if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}return sortAsc?(va<vb?-1:va>vb?1:0):(va>vb?-1:va<vb?1:0);});
+  ["ticker","price","change","volume","cap"].forEach(k=>{
+    const el=document.getElementById("sa-"+k);if(!el)return;
+    if(k===sortKey){el.textContent=sortAsc?"▲":"▼";el.classList.add("active");}else{el.textContent="▲";el.classList.remove("active");}
+  });
+  const tbody=document.getElementById("tbody"),nr=document.getElementById("no-results");
+  if(!list.length){tbody.innerHTML="";nr.style.display="block";return;}
+  nr.style.display="none";
+  tbody.innerHTML=list.map(s=>{
+    const isUp=s.change>=0;
+    const badge=s.apiStatus==="pending"
+      ?`<span class="badge bg-neutral neutral" style="font-size:11px">--</span>`
+      :`<span class="badge ${isUp?"bg-up":"bg-down"}">${isUp?"▲ +":"▼ "}${Math.abs(s.change).toFixed(2)}%</span>`;
+    const priceCell=s.apiStatus==="pending"?`<span style="color:#555">取得中</span>`:`¥${fmtPrice(s.price)}`;
+    const stLabel={pending:"取得中",live:"LIVE",error:"ERR"}[s.apiStatus]||"--";
+    return`<tr class="${s.focus?"highlight-row":""}">
+      <td>
+        <span class="t-star" style="background:${s.color}"></span>
+        <span class="t-ticker">${s.ticker}</span>
+        <span class="row-status ${s.apiStatus}">${stLabel}</span>
+        <div class="t-name" style="margin-left:14px">${s.name}</div>
+      </td>
+      <td class="r t-price">${priceCell}</td>
+      <td class="r">${badge}</td>
+      <td class="r hide-sm neutral">${fmtVol(s.volume)}</td>
+      <td class="r hide-sm neutral">${s.cap>=1000?(s.cap/1000).toFixed(1)+"兆":s.cap+"億"}</td>
+      <td class="r hide-sm"><span style="font-size:11px;color:#555">${s.sector}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+// ===== RENDER SUMMARY =====
+function renderSummary(){
+  const live=stocks.filter(s=>s.apiStatus==="live");
+  const base=live.length?live:stocks;
+  const g=base.filter(s=>s.change>=0).length,l=base.length-g;
+  document.getElementById("s-total").textContent=stocks.length;
+  document.getElementById("s-up").textContent=g;
+  document.getElementById("s-dn").textContent=l;
+  document.getElementById("s-up-p").textContent=base.length?Math.round(g/base.length*100)+"% 上昇":"--";
+  document.getElementById("s-dn-p").textContent=base.length?Math.round(l/base.length*100)+"% 下落":"--";
+  document.getElementById("s-time").textContent=new Date().toLocaleTimeString("ja-JP");
+}
+
+// ===== RENDER FACTORS (dynamic — called after each stock update) =====
+function renderFactors(){
+  const factors=computeFactors();
+  document.getElementById("factors-grid").innerHTML=factors.map(f=>`
+    <div class="factor-card">
+      <div class="factor-label">${f.label}</div>
+      <div class="factor-val ${f.cls}">${f.val}</div>
+      <div class="meter"><div class="meter-fill ${f.cls}" style="width:${f.meter}%"></div></div>
+      <div class="factor-desc">${f.desc}</div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">
+        ${f.chips.map(c=>`<span class="impact-chip ${c.c}">${c.l}</span>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+// ===== RENDER NEWS =====
+function renderNews(){
+  document.getElementById("news-grid").innerHTML=NEWS.map(n=>`
+    <div class="news-card">
+      <div class="news-header">
+        <div><span class="news-cat ${n.cat}">${n.catLabel}</span>
+        <div class="news-title" style="margin-top:6px">${n.title}</div></div>
+        <div class="news-date">${n.date}</div>
+      </div>
+      <div class="news-body">${n.body}</div>
+      <div class="news-impact">${n.impacts.map(i=>`<span class="impact-chip ${i.cls}">${i.label}</span>`).join("")}</div>
+    </div>`).join("");
+}
+
+// ===== CLOCK / SORT / SEARCH =====
+function updateClock(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("ja-JP");}
+function sort(key){if(sortKey===key)sortAsc=!sortAsc;else{sortKey=key;sortAsc=true;}renderTable();}
+document.getElementById("search").addEventListener("input",e=>{query=e.target.value.toLowerCase().trim();renderTable();});
+
+// ===== INIT =====
+renderNews();
+renderMarket();
+renderTable();
+renderSummary();
+renderFactors();
+setInterval(updateClock,1000);
+// マーケットバーはシミュレーション（5秒ごと）＋ファクター再計算
+setInterval(()=>{fluctuateMarket();renderMarket();renderFactors();},5000);
+// APIは90秒ごとに自動再取得
+setInterval(fetchAllPrices,90000);
+// 初回API取得
+fetchAllPrices();
+</script>
+</body>
+</html>
